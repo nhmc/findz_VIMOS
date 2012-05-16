@@ -3,11 +3,10 @@ import pyfits
 import numpy as np
 import matplotlib.pyplot as pl
 
-from astro.io import readtxt, saveobj, loadobj
-from astro.utilities import between, adict, nan2num, find_edges_true_regions
+from astro.io import saveobj
+from astro.utilities import between, adict
 from astro.convolve import convolve_psf
-from astro.spec import find_cont, plotlines
-from astro.plot import axvfill
+from astro.spec import find_cont
 import astro.sed as sed
 
 from VIMOS_util import \
@@ -19,7 +18,7 @@ import sys, os
 
 PLOT = 0
 
-np.seterr(all='raise')
+np.seterr(all='ignore')
 
 # regions to mask when doing cross correlation; atmospheric lines and
 # fringing.
@@ -61,7 +60,7 @@ def prepare_templates(templates, convolve_pix=None, plot=0):
             pl.show()
             raw_input()
 
-        t1 = adict(logwa=logtwa, fl=tfl,co=tco,label=t.label)
+        t1 = adict(logwa=logtwa, fl=tfl, co=tco, label=t.label)
         tnew.append(t1)
 
     return tnew

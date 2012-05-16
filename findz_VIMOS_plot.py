@@ -2,21 +2,18 @@ from __future__ import division
 import pyfits
 import numpy as np
 import matplotlib.pyplot as pl
-import pdb
 
 import astro
 from astro.fit import scale_by_median
-from astro.io import readtxt, saveobj, loadobj
-from astro.utilities import between, nan2num, stats
+from astro.io import readtxt, loadobj
+from astro.utilities import between
 from astro.convolve import convolve_psf
-from astro.spec import find_cont, plotlines
+from astro.spec import plotlines
 from astro.plot import axvfill
-import astro.sed as sed
 import Tkinter as tkinter
 
 from glob import glob
 import sys, os
-from subprocess import call
 
 from VIMOS_util import \
      get_1d_2d_spectra, get_1st_order_region, WMIN, WMAX, MASKATMOS

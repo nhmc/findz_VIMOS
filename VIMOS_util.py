@@ -77,7 +77,7 @@ def get_1st_order_region(wa, sky, msky, wmin=0, thresh=2, dwlo=230, dwhi=130):
     
     wa: wavelength array, length N
     sky: sky array, length N
-    sky: median sky array, length N
+    msky: median sky array, length N
 
     Returns the start and end indices of the region to be masked.  Or
     None,None if there is no masked region.
