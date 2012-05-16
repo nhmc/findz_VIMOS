@@ -14,6 +14,7 @@ import Tkinter as tkinter
 
 from glob import glob
 import sys, os
+from subprocess import call
 
 from VIMOS_util import \
      get_1d_2d_spectra, get_1st_order_region, WMIN, WMAX, MASKATMOS
