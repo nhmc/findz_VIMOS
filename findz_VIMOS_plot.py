@@ -316,15 +316,18 @@ x: new redshift (don't move to nearest xcorr peak)
             if event.key == ' ':
                 self.z = event.xdata
                 self.update()
+                self.fig.canvas.draw()
             elif event.key == 'x':
                 self.z = event.xdata
-                self.update(fitpeak=False)            
+                self.update(fitpeak=False)
+                self.fig.canvas.draw()
         elif event.inaxes == self.ax[0]:
             if event.key == ' ':
                 i = int(np.round(event.xdata))
                 self.i = min(max(i, 0), len(self.zatmax)-1)
                 self.z = self.zatmax[self.i]
                 self.update()
+                self.fig.canvas.draw()
         elif event.inaxes == self.ax[2]:
             try:
                 j = self.keys.index(event.key)
@@ -334,7 +337,8 @@ x: new redshift (don't move to nearest xcorr peak)
             zp1 = event.xdata / line['wa']
             #print 'z=%.3f, %s %f' % (zp1 - 1, line['name'], line['wa'])
             self.z = zp1 - 1
-            self.update()
+            self.update(fitpeak=False)
+            self.fig.canvas.draw()
 
     def disconnect(self):
         t = self.title.get_text()
