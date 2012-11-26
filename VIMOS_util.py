@@ -107,7 +107,7 @@ def get_object_IDs(filename):
     fh = pyfits.open(filename)
     quad = fh[0].header['HIERARCH ESO OCS CON QUAD']
     IDs = []
-    for iext in range(1, 5):
+    for iext in range(1, len(fh)):
         otable = fh[iext].data
         nobj = len([n for n in otable.dtype.names if n.startswith('object_')])
         for i in xrange(len(otable)):
@@ -199,7 +199,138 @@ def apply_distortion(xccd1, yccd1, hd):
     return xccd1, yccd1
 
 
-if 0:
+#NT code from here.
+def median_MAD(a,m=1.4826):
+    """Median absolute deviation"""
+    import numpy as np
+    median = np.median(a)
+    error  = np.fabs(a-median)
+    error  = np.median(error)
+    return m*error
+
+def get_D4000_break(wa,fl,er,z):
+    """Gets the 4000A break (with associated error) as the ratio
+    between the two continuum regions (at both sides), for a given
+    galaxy spectrum (wa,fl,er) observed at a given redshift
+    (z). Returns a tuple with ratio and associated error."""
+    bands = {'D4000': (3750,3950,4050,4250)}
+    Nmin = 15. #minimum number of pixels in continuum bands required (has to be >0).
+    
+    for key in bands.keys():
+        cond1 = (wa >= bands[key][0]*(1+z)) & (wa <= bands[key][1]*(1+z))
+        cond2 = (wa >= bands[key][2]*(1+z)) & (wa <= bands[key][3]*(1+z))
+        cs1 = (wa[cond1]>=7550)&(wa[cond1]<=7700) #sky absorption
+        cs2 = (wa[cond2]>=7550)&(wa[cond2]<=7700) #sky absorption
+        
+        if  (np.sum(cond1)<Nmin) | (np.sum(cond2)<Nmin) | (z<0):#line
+                                                        #too close to
+                                                        #spectrum edge
+                                                        #or gap or no
+                                                        #redshift
+            
+            ratio     = -99.  # no measurement
+            ratio_err = -99.
+            
+        elif (np.sum(cs1)>0)|(np.sum(cs2)>0):
+            ratio     = -99.  # no measurement
+            ratio_err = -99.
+            
+            
+        else:
+            clvl1 = np.median(fl[cond1]) # continuum level 1
+            clvl2 = np.median(fl[cond2]) # continuum level 2
+            ratio = clvl2/clvl1
+            
+            #error estimate
+            clvl1_err = np.std(fl[cond1])
+            clvl2_err = np.std(fl[cond2])
+            
+            ratio_err = (1./clvl1)**2 * clvl2_err**2 + (clvl2/clvl1/clvl1)**2 * clvl1_err**2
+            ratio_err = np.sqrt(ratio_err)
+            print key, ratio, ratio_err
+    return ratio, ratio_err
+    
+    
+def get_flux_EW_bands(wa,fl,er,z):
+    """Gets the flux and equiv. widths (with associated error) of the
+    bands (defined inside this function) for a given galaxy spectrum
+    (wa,fl,er) observed at a given redshift (z). Return 2 dictionaries,
+    1 for fluxes and one for equivalent widths respectively."""
+    import pylab as pl
+    bands = {'OII':  (3645,3715,3715,3740,3740,3810),
+             'Hd':   (4010,4080,4085,4120,4120,4190),
+             'Hc':   (4200,4270,4320,4360,4360,4430),
+             'Hb':   (4760,4830,4830,4900,5030,5100),
+             'OIII': (4760,4830,4990,5030,5030,5100),
+             'Ha':   (6460,6530,6530,6610,6610,6680),
+             'SII':  (6625,6695,6695,6760,6760,6830)}   
+        
+    
+    maskatmos = [(1, WMIN),
+             (5870, 5910),
+             (6275, 6325),
+             (6350, 6385),
+             (7550, 7720),
+             (WMAX, 1e9)]
+    
+    Nmin = 5. #minimum number of pixels in continuum bands required (has to be >0).
+    flux  = {}
+    EW    = {}
+    for key in bands.keys():
+        #estimating the continuum level around the line
+        cond1 = (wa >= bands[key][0]*(1+z)) & (wa <  bands[key][1]*(1+z)) #blue cont
+        condl = (wa >= bands[key][2]*(1+z)) & (wa <= bands[key][3]*(1+z)) #feature
+        cond2 = (wa >= bands[key][4]*(1+z)) & (wa <  bands[key][5]*(1+z)) #red cont
+        csf   = (wa[condl]>=7550)&(wa[condl]<=7720)  #sky absprption
+        cs1   = (wa[cond1]>=7550)&(wa[cond1]<=7720)
+        cs2   = (wa[cond2]>=7550)&(wa[cond2]<=7720)
+        if  (np.sum(cond1)<Nmin)|(np.sum(cond2)<Nmin)|(z<0):#line
+                                                        #too close to
+                                                        #spectrum edge
+                                                        #or gap or no
+                                                        #redshift
+            
+            Fl     = -99.  # no measurement
+            Wl     = -99.  
+            Fl_err = -99.
+            Wl_err = -99.
+        
+        elif (np.sum(csf)>0)|(np.sum(cs1)>0)|(np.sum(cs2)>0):
+            Fl     = -99.  # no measurement
+            Wl     = -99.  
+            Fl_err = -99.
+            Wl_err = -99.
+            
+        
+        else: # line well within the spectrum
+            clvl1 = np.median(fl[cond1]) # continuum level 1
+            clvl2 = np.median(fl[cond2]) # continuum level 2
+            cont  = (clvl2 - clvl1)/(np.mean(wa[cond2])-np.mean(wa[cond1]))*(wa-np.mean(wa[cond1]))+clvl1 #linear interpolation 
+            
+            #estimating the line flux & equiv. width 
+            dl    = np.mean(wa[condl][1:]-wa[condl][:-1]) #mean pixel size [wavelen. units]
+            n     = np.sum(condl) # number of pixels for the line
+            Fl    = (np.sum(fl[condl] - cont[condl]))*dl  #integrated (flux - continuum)
+            Wl    = (np.sum(1-fl[condl]/cont[condl]))*dl  #observed equiv. width (<0 for emission)
+            Fl    = Fl / (1.+z) #rest frame 
+            Wl    = Wl / (1.+z) #rest frame
+            
+            #error estimation (neglecting z error)
+            clvl1_err = median_MAD(fl[cond1])
+            clvl2_err = median_MAD(fl[cond2])
+            cont_err  = np.sqrt(clvl1_err**2 + clvl2_err**2)/2.
+            Fl_err    = np.sum(er[condl]**2) + (n*cont_err)**2
+            Fl_err    = np.sqrt(Fl_err)*dl/(1.+z)
+            Wl_err    = np.sum((er[condl]/cont[condl])**2) + np.sum((fl[condl]/(cont[condl]**2))**2)*cont_err**2
+            Wl_err    = np.sqrt(Wl_err)*dl/(1.+z)
+                    
+            #print key,Fl,Fl_err,Wl,Wl_err
+        flux[key] = (Fl,Fl_err)
+        EW[key]   = (Wl,Wl_err)
+    return flux, EW
+
+
+if __name__ == '__main__':
     IDs = get_object_IDs('object_sci_table.fits')
 
     fig = pl.figure(figsize=(13, 5))
