@@ -2,6 +2,7 @@ from __future__ import division
 import pyfits
 import numpy as np
 import matplotlib.pyplot as pl
+import scipy as sp #NT 
 
 import astro
 from astro.fit import scale_by_median
@@ -99,6 +100,7 @@ k: Skip without saving results
 m: Maybe
 y: Accept
 n: Reject
+f: Fake
 
 space: new template or redshift
 x: new redshift (don't move to nearest xcorr peak)
@@ -247,14 +249,26 @@ x: new redshift (don't move to nearest xcorr peak)
         vals = self.vals[self.i]
         j = ic
         while True:
+            zmax = 0. # NT code
             if j <= 1 or j >= (len(vals) - 2):
                 break
             sleft = np.sign((vals[j] - vals[j-1])/
                             (redshifts[j] - redshifts[j-1]))
             sright = np.sign((vals[j+1] - vals[j])/
                              (redshifts[j+1] - redshifts[j]))
-
+            
             if sleft != sright:
+                #NT code:
+                polycoeffs = sp.polyfit(redshifts[j-2:j+3],vals[j-2:j+3],2) #fit parabola
+                zmax       = -polycoeffs[1]/polycoeffs[0]/2. #max of parabola
+                #The parabola fit is faster and as good as the method below. Keep the parabola fit.
+                #t  = self.templ[self.i]
+                #sp = self.spec
+                #sp_co = find_cont(sp.fl, fwhm1=200, fwhm2=150)
+                #zpeak = np.arange(zmax-0.001, zmax+0.001, 0.00001) #use a much smaller redshift step to find the peak
+                #xcorr_a,nchi_a = xcorr_template(sp.wa, sp.fl, sp.er, sp_co,
+                #                                t.logwa, t.fl, t.co, zpeak, plot=0)
+                #zmax = zpeak[xcorr_a==np.max(xcorr_a)]
                 break
             elif sleft > 0:
                 j += 1
@@ -265,7 +279,11 @@ x: new redshift (don't move to nearest xcorr peak)
 
         j = max(0, j)
         j = min(len(vals)-1, j)
-        return redshifts[j]
+        #NT code:
+        if zmax:
+            return zmax
+        else:
+            return redshifts[j]
 
     def plotlines(self, zp1):
         """ Plot the positions of expected lines given a redshift
@@ -298,6 +316,11 @@ x: new redshift (don't move to nearest xcorr peak)
             print 'Rejecting, z set to -1'
             self.zgood = -1.
             self.zconf = 'c'
+            self.disconnect()
+        elif event.key == 'f': # NT code
+            print 'Rejecting fake object, z set to -1'
+            self.zgood = -1.
+            self.zconf = 'f'
             self.disconnect()
         elif event.key == 'k':
             print 'Skipping, not writing anything'
